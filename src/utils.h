@@ -225,7 +225,7 @@ operator!=(const Vec<T>& aa, const Vec<T>& bb) {
 
 #if COMPILER_MSVC
 	#define debugger_breakpoint() __debugbreak()
-#elif COMPILER_CLANG || COMPILER_GNU
+#elif COMPILER_CLANG || COMPILER_GNU || COMPILER_APPLE_CLANG
 	#define debugger_breakpoint() __builtin_trap()
 #else
 	#error unknown compiler
@@ -371,5 +371,5 @@ file_content_str(const char* path, memory::Allocator* allocator = memory::defaul
 		panic("failed to read file '{}', expected to read {} bytes but got {} bytes", path, expected_size, read_size);
 	}
 
-	return std::move(content);
+	return content;
 }

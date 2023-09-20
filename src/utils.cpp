@@ -1,4 +1,4 @@
-#include "utils.hpp"
+#include "utils.h"
 
 #if OS_WINDOWS
 #include <string.h>
@@ -202,7 +202,7 @@ Str folder_config(memory::Allocator* allocator) {
 
 	path_normalize(str);
 
-	return std::move(str);
+	return str;
 }
 #else
 Str folder_config(memory::Allocator* allocator) {
