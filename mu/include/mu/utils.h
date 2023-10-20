@@ -125,11 +125,6 @@ namespace mu {
 		v.pop_back();
 	}
 
-	inline static StrView
-	operator"" _str_lit(const char* s, size_t l) {
-		return StrView(s, l);
-	}
-
 	inline static void
 	str_replace(Str& self, StrView search, StrView replace) {
 		size_t pos = 0;
