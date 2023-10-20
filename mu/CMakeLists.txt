@@ -8,7 +8,7 @@ set(SOURCE_FILES
 	src/mu/utils.cpp
 )
 
-add_library(mu SHARED)
+add_library(mu STATIC)
 
 target_sources(mu
 	PRIVATE ${HEADER_FILES}
