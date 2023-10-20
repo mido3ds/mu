@@ -33,7 +33,7 @@ void _callstack_print_to([[maybe_unused]] void** frames, [[maybe_unused]] size_t
 	static Debugger_Callstack _d;
 
 	// gather all the loaded libraries first
-	Vec<void*> libs {GetCurrentProcess()};
+	mu::Vec<void*> libs {GetCurrentProcess()};
 	DWORD bytes_needed = 0;
 	if (EnumProcessModules(libs[0], NULL, 0, &bytes_needed)) {
 		libs.resize(bytes_needed/sizeof(HMODULE) + libs.size());
@@ -187,28 +187,28 @@ _callstack_print_to([[maybe_unused]] void** frames, [[maybe_unused]] size_t fram
 #endif
 
 #ifdef OS_WINDOWS
-Str folder_config(memory::Allocator* allocator) {
+mu::Str folder_config(mu::memory::Allocator* allocator) {
 	PWSTR wstr = nullptr;
 	if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &wstr) != S_OK) {
-		panic("No local config directory");
+		mu::panic("No local config directory");
 	}
 	defer(CoTaskMemFree((LPVOID)wstr));
 
 	const int len = wcslen(wstr);
 
 	const int size_needed = WideCharToMultiByte(CP_UTF8, NULL, (LPWSTR)wstr, len, NULL, 0, NULL, NULL);
-	Str str(size_needed, 0, allocator);
+	mu::Str str(size_needed, 0, allocator);
 	WideCharToMultiByte(CP_UTF8, NULL, (LPWSTR)wstr, len, str.data(), str.length(), NULL, NULL);
 
-	path_normalize(str);
+	mu::path_normalize(str);
 
 	return str;
 }
 #else
-Str folder_config(memory::Allocator* allocator) {
+mu::Str folder_config(mu::memory::Allocator* allocator) {
     char* s = getenv("XDG_CONFIG_HOME");
     if (s && ::strlen(s) > 0) {
-        return Str(s, allocator);
+        return mu::Str(s, allocator);
     }
 
     s = getenv("HOME");
@@ -216,13 +216,13 @@ Str folder_config(memory::Allocator* allocator) {
         return str_format(allocator, "{}/.config", s);
     }
 
-	return Str("~/.config", allocator);
+	return mu::Str("~/.config", allocator);
 }
 #endif
 
-ILogger* log_global_logger = nullptr;
+mu::ILogger* log_global_logger = nullptr;
 
-namespace memory {
+namespace mu::memory {
 	static thread_local Arena _tmp_allocator;
 
 	Allocator* tmp() {
