@@ -211,14 +211,14 @@ namespace mu {
 	#endif
 
 	#ifdef NDEBUG
-		#define my_assert_msg(expr, message) ((void)0)
-		#define my_assert(expr) ((void)0)
+		#define mu_assert_msg(expr, message) ((void)0)
+		#define mu_assert(expr) ((void)0)
 	#else
-		#define my_assert_msg(expr, message) { if (expr) {} else { fmt::print(stderr, "[ASSERT] {}:{} ({}) {}", __FILE__, __LINE__, #expr, message); debugger_breakpoint(); } }
-		#define my_assert(expr) { if (expr) {} else { fmt::print(stderr, "[ASSERT] {}:{} ({})",__FILE__, __LINE__, #expr); debugger_breakpoint(); } }
+		#define mu_assert_msg(expr, message) { if (expr) {} else { fmt::print(stderr, "[ASSERT] {}:{} ({}) {}", __FILE__, __LINE__, #expr, message); debugger_breakpoint(); } }
+		#define mu_assert(expr) { if (expr) {} else { fmt::print(stderr, "[ASSERT] {}:{} ({})",__FILE__, __LINE__, #expr); debugger_breakpoint(); } }
 	#endif
 
-	#define unreachable() my_assert_msg(false, "unreachable")
+	#define unreachable() mu_assert_msg(false, "unreachable")
 
 	// captures the top frames_count callstack frames and writes it to the given frames pointer
 	size_t _callstack_capture(void** frames, size_t frames_count);
@@ -365,6 +365,44 @@ namespace fmt {
 			fmt::format_to(ctx.out(), "Vec[{}]{{", self.size());
 			for (int i = 0; i < self.size(); i++) {
 				fmt::format_to(ctx.out(), "[{}]={}{}", i, self[i], (i == self.size()-1? "":", "));
+			}
+			return fmt::format_to(ctx.out(), "}}");
+		}
+	};
+}
+
+namespace fmt {
+	template<typename K, typename V>
+	struct formatter<mu::Map<K, V>> {
+		template <typename ParseContext>
+		constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+		template <typename FormatContext>
+		auto format(const mu::Map<K, V> &self, FormatContext &ctx) {
+			auto s = self.size();
+			fmt::format_to(ctx.out(), "Map[{}]{{", s);
+			for (const auto& [k, v] : self) {
+				fmt::format_to(ctx.out(), "[{}]={}{}", k, v, (s == 1? "":", "));
+				s--;
+			}
+			return fmt::format_to(ctx.out(), "}}");
+		}
+	};
+}
+
+namespace fmt {
+	template<typename T>
+	struct formatter<mu::Set<T>> {
+		template <typename ParseContext>
+		constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+		template <typename FormatContext>
+		auto format(const mu::Set<T> &self, FormatContext &ctx) {
+			const auto s = self.size(); int i = 0;
+			fmt::format_to(ctx.out(), "Set[{}]{{", s);
+			for (const auto& v : self) {
+				fmt::format_to(ctx.out(), "[{}]={}{}", i, v, (i == s-1? "":", "));
+				i++;
 			}
 			return fmt::format_to(ctx.out(), "}}");
 		}
