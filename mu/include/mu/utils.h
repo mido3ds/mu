@@ -143,16 +143,6 @@ namespace mu {
 		}
 	}
 
-	inline static bool
-	str_prefix(StrView self, StrView search) {
-		return self.find_first_of(search) == 0;
-	}
-
-	inline static bool
-	str_suffix(StrView self, StrView search) {
-		return self.find_last_of(search) == self.size()-1;
-	}
-
 	// appends the formatted string to the end of self
 	template<typename ... Args>
 	inline static void
