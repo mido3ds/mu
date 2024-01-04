@@ -1,6 +1,8 @@
 #include <mu/utils.h>
 
 int main() {
+    mu_test_suite("main tests");
+
     mu_defer(mu::log_debug("runs at end"));
 
     if (1 == 0) {
