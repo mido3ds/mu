@@ -5,6 +5,12 @@ if(APPLE)
     enable_language(OBJC)
 endif()
 
+set(MASTER_PROJECT OFF)
+if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+	set(MASTER_PROJECT ON)
+endif ()
+
+option(MU_BUILD_TESTS    "Build mu tests."                      ${MASTER_PROJECT})
 option(MU_PEDANTIC_BUILD "Enable pedantic warnings during build" OFF)
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
@@ -36,3 +42,7 @@ CPMAddPackage(
 )
 
 add_subdirectory(mu)
+
+if (MU_BUILD_TESTS)
+	add_subdirectory(test)
+endif()

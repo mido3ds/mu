@@ -93,7 +93,7 @@ namespace mu {
         if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &wstr) != S_OK) {
             panic("No local config directory");
         }
-        defer(CoTaskMemFree((LPVOID)wstr));
+        mu_defer(CoTaskMemFree((LPVOID)wstr));
 
         const int len = wcslen(wstr);
 

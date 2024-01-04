@@ -14,13 +14,42 @@ namespace std { namespace pmr = experimental::pmr; }
 #include <unordered_set>
 #include <memory>
 #include <fstream>
+#include <functional>
+#include <filesystem>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-namespace mu {
-	#define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
+#define mu_count_of(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 
+#define __CONCAT_MACRO_2(x, y) x##y
+#define __CONCAT_MACRO_(x, y) __CONCAT_MACRO_2(x, y)
+
+// defers the given code/block of code to the end of the current scopre
+#define mu_defer(code)   const mu::Deferrer_ __CONCAT_MACRO_(_defer_, __LINE__) ([&]{code;})
+
+#if COMPILER_MSVC
+	#define mu_debugger_breakpoint() __debugbreak()
+#elif COMPILER_CLANG || COMPILER_GNU || COMPILER_APPLE_CLANG
+	#define mu_debugger_breakpoint() __builtin_trap()
+#else
+	#error unknown compiler
+#endif
+
+#ifdef NDEBUG
+	#define mu_assert_msg(expr, message) ((void)0)
+	#define mu_assert(expr) ((void)0)
+#else
+	#define mu_assert_msg(expr, message) { if (expr) {} else { fmt::print(stderr, "[ASSERT] {}:{} ({}) {}\n", __FILE__, __LINE__, #expr, message); mu_debugger_breakpoint(); } }
+	#define mu_assert(expr) { if (expr) {} else { fmt::print(stderr, "[ASSERT] {}:{} ({})\n",__FILE__, __LINE__, #expr); mu_debugger_breakpoint(); } }
+#endif
+
+#define mu_test(expr) { if (expr) { fmt::print(stdout, "[OK] ({})\n", #expr); } else { fmt::print(stderr, "[FAIL] {}:{} ({})\n",__FILE__, __LINE__, #expr); mu_debugger_breakpoint(); } }
+#define mu_test_msg(expr, message) { if (expr) { fmt::print(stdout, "[OK] ({}) {}\n", #expr, message); } else { fmt::print(stderr, "[FAIL] {}:{} ({}) {}\n",__FILE__, __LINE__, #expr, message); mu_debugger_breakpoint(); }  }
+
+#define mu_unreachable() mu_assert_msg(false, "unreachable")
+
+namespace mu {
 	template<typename T>
 	using Box = std::unique_ptr<T>;
 
@@ -170,6 +199,34 @@ namespace mu {
 		return str_format(memory::tmp(), format_str, args...);
 	}
 
+	// trim spaces from start (in place)
+	inline static void
+	str_ltrim_spaces(Str& s) {
+		s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+			return !std::isspace(ch);
+		}));
+	}
+
+	// trim spaces from end (in place)
+	inline static void
+	str_rtrim_spaces(Str& s) {
+		s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+			return !std::isspace(ch);
+		}).base(), s.end());
+	}
+
+	// trim spaces from both ends (in place)
+	inline static void
+	str_trim_spaces(Str& s) {
+		str_rtrim_spaces(s);
+		str_ltrim_spaces(s);
+	}
+
+	inline static void
+	str_to_lower(Str& s) {
+		std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c){ return std::tolower(c); });
+	}
+
 	template<typename T>
 	inline static bool
 	operator==(const Vec<T>& aa, const Vec<T>& bb) {
@@ -192,24 +249,6 @@ namespace mu {
 
 	/////////////////////////////////////////////////////////////////////////////////
 
-	#if COMPILER_MSVC
-		#define debugger_breakpoint() __debugbreak()
-	#elif COMPILER_CLANG || COMPILER_GNU || COMPILER_APPLE_CLANG
-		#define debugger_breakpoint() __builtin_trap()
-	#else
-		#error unknown compiler
-	#endif
-
-	#ifdef NDEBUG
-		#define mu_assert_msg(expr, message) ((void)0)
-		#define mu_assert(expr) ((void)0)
-	#else
-		#define mu_assert_msg(expr, message) { if (expr) {} else { fmt::print(stderr, "[ASSERT] {}:{} ({}) {}", __FILE__, __LINE__, #expr, message); debugger_breakpoint(); } }
-		#define mu_assert(expr) { if (expr) {} else { fmt::print(stderr, "[ASSERT] {}:{} ({})",__FILE__, __LINE__, #expr); debugger_breakpoint(); } }
-	#endif
-
-	#define unreachable() mu_assert_msg(false, "unreachable")
-
 	// captures the top frames_count callstack frames and writes it to the given frames pointer
 	size_t _callstack_capture(void** frames, size_t frames_count);
 	void _callstack_print_to(void** frames, size_t frames_count);
@@ -227,7 +266,7 @@ namespace mu {
 		fmt::print(stderr, "[PANIC]: {}\n", str);
 		_callstack_print_to(frames, frames_count);
 
-		debugger_breakpoint();
+		mu_debugger_breakpoint();
 		abort();
 	}
 
@@ -293,12 +332,6 @@ namespace mu {
 		inline ~Deferrer_() { f(); }
 	};
 
-	#define CONCAT_MACRO_2(x, y) x##y
-	#define CONCAT_MACRO_(x, y) CONCAT_MACRO_2(x, y)
-
-	// defers the given code/block of code to the end of the current scopre
-	#define defer(code)   const mu::Deferrer_ CONCAT_MACRO_(_defer_, __LINE__) ([&]{code;})
-
 	Str folder_config(memory::Allocator* allocator = memory::default_allocator());
 
 	inline static void
@@ -324,7 +357,7 @@ namespace mu {
 		if (file == nullptr) {
 			panic("failed to open file '{}' for reading", path);
 		}
-		defer(fclose(file));
+		mu_defer(fclose(file));
 
 		if (fseek(file, 0, SEEK_END)) {
 			panic("failed to seek in file '{}' for reading", path);
@@ -342,6 +375,36 @@ namespace mu {
 
 		return content;
 	}
+
+	inline static Vec<Str>
+	dir_list_files_with(
+		StrView dir_abs_path,
+		std::function<bool(StrView)> predicate,
+		memory::Allocator* allocator = memory::default_allocator()
+	) {
+		Vec<Str> out;
+
+		for (const auto & entry : std::filesystem::directory_iterator(dir_abs_path)) {
+			if (entry.is_regular_file()) {
+				auto filename = entry.path().filename().string();
+				auto path = entry.path().string();
+
+				if (predicate(filename)) {
+					out.push_back(Str(path, allocator));
+				}
+			}
+		}
+
+		return out;
+	}
+
+	inline static Vec<Str>
+	dir_list_files(
+		StrView dir_abs_path,
+		memory::Allocator* allocator = memory::default_allocator()
+	) {
+		return dir_list_files_with(dir_abs_path, [](auto){ return true; }, allocator);
+	}
 }
 
 namespace fmt {
@@ -352,16 +415,29 @@ namespace fmt {
 
 		template <typename FormatContext>
 		auto format(const mu::Vec<T> &self, FormatContext &ctx) {
-			fmt::format_to(ctx.out(), "Vec[{}]{{", self.size());
+			fmt::format_to(ctx.out(), "Vec<{}>[{}]{{", typeid(T).name(), self.size());
 			for (int i = 0; i < self.size(); i++) {
 				fmt::format_to(ctx.out(), "[{}]={}{}", i, self[i], (i == self.size()-1? "":", "));
 			}
 			return fmt::format_to(ctx.out(), "}}");
 		}
 	};
-}
 
-namespace fmt {
+	template<typename T, size_t N>
+	struct formatter<mu::Arr<T, N>> {
+		template <typename ParseContext>
+		constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+		template <typename FormatContext>
+		auto format(const mu::Arr<T, N> &self, FormatContext &ctx) {
+			fmt::format_to(ctx.out(), "Arr<{}>[{}]{{", typeid(T).name(), self.size());
+			for (int i = 0; i < self.size(); i++) {
+				fmt::format_to(ctx.out(), "[{}]={}{}", i, self[i], (i == self.size()-1? "":", "));
+			}
+			return fmt::format_to(ctx.out(), "}}");
+		}
+	};
+
 	template<typename K, typename V>
 	struct formatter<mu::Map<K, V>> {
 		template <typename ParseContext>
@@ -370,7 +446,7 @@ namespace fmt {
 		template <typename FormatContext>
 		auto format(const mu::Map<K, V> &self, FormatContext &ctx) {
 			auto s = self.size();
-			fmt::format_to(ctx.out(), "Map[{}]{{", s);
+			fmt::format_to(ctx.out(), "Map<{} -> {}>[{}]{{", typeid(K).name(), typeid(V).name(), s);
 			for (const auto& [k, v] : self) {
 				fmt::format_to(ctx.out(), "[{}]={}{}", k, v, (s == 1? "":", "));
 				s--;
@@ -378,9 +454,7 @@ namespace fmt {
 			return fmt::format_to(ctx.out(), "}}");
 		}
 	};
-}
 
-namespace fmt {
 	template<typename T>
 	struct formatter<mu::Set<T>> {
 		template <typename ParseContext>
@@ -389,7 +463,7 @@ namespace fmt {
 		template <typename FormatContext>
 		auto format(const mu::Set<T> &self, FormatContext &ctx) {
 			const auto s = self.size(); int i = 0;
-			fmt::format_to(ctx.out(), "Set[{}]{{", s);
+			fmt::format_to(ctx.out(), "Set<{}>[{}]{{", typeid(T).name(), s);
 			for (const auto& v : self) {
 				fmt::format_to(ctx.out(), "[{}]={}{}", i, v, (i == s-1? "":", "));
 				i++;
