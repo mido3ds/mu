@@ -40,14 +40,14 @@ namespace std { namespace pmr = experimental::pmr; }
 	#define mu_assert_msg(expr, message) ((void)0)
 	#define mu_assert(expr) ((void)0)
 #else
-	#define mu_assert_msg(expr, message) { if (expr) {} else { fmt::print(stderr, "[ASSERT] {}:{} ({}) {}\n", __FILE__, __LINE__, #expr, message); mu_debugger_breakpoint(); } }
-	#define mu_assert(expr) { if (expr) {} else { fmt::print(stderr, "[ASSERT] {}:{} ({})\n",__FILE__, __LINE__, #expr); mu_debugger_breakpoint(); } }
+	#define mu_assert_msg(expr, message) { if (expr) {} else { mu::panic("[ASSERT] {}:{} ({}) {}", __FILE__, __LINE__, #expr, message); mu_debugger_breakpoint(); } }
+	#define mu_assert(expr) { if (expr) {} else { mu::panic("[ASSERT] {}:{} ({})",__FILE__, __LINE__, #expr); mu_debugger_breakpoint(); } }
 #endif
 
-#define mu_test(expr) { if (expr) { fmt::print(stdout, "[OK] ({})\n", #expr); } else { fmt::print(stderr, "[FAIL] {}:{} ({})\n",__FILE__, __LINE__, #expr); mu_debugger_breakpoint(); } }
-#define mu_test_msg(expr, message) { if (expr) { fmt::print(stdout, "[OK] ({}) {}\n", #expr, message); } else { fmt::print(stderr, "[FAIL] {}:{} ({}) {}\n",__FILE__, __LINE__, #expr, message); mu_debugger_breakpoint(); }  }
-
 #define mu_unreachable() mu_assert_msg(false, "unreachable")
+
+#define mu_test(expr) { if (expr) { fmt::print(stdout, "[OK] ({})\n", #expr); } else { mu::panic("[FAIL] {}:{} ({})",__FILE__, __LINE__, #expr); mu_debugger_breakpoint(); } }
+#define mu_test_msg(expr, message) { if (expr) { fmt::print(stdout, "[OK] ({}) {}\n", #expr, message); } else { mu::panic("[FAIL] {}:{} ({}) {}",__FILE__, __LINE__, #expr, message); mu_debugger_breakpoint(); }  }
 
 namespace mu {
 	template<typename T>
