@@ -406,6 +406,32 @@ namespace mu {
 	) {
 		return dir_list_files_with(dir_abs_path, [](auto){ return true; }, allocator);
 	}
+
+	/////////////////////////////////////////////////////////////////////////////////
+
+	inline static void
+	thread_sleep_millis(uint32_t millis) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(millis));
+	}
+
+	inline static uint64_t
+	time_now_millis() {
+		return std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch()
+		).count();
+	}
+
+	struct Timer {
+		uint64_t _last_time_millis;
+	};
+
+	inline static Timer
+	timer_new() { return Timer { time_now_millis() }; }
+
+	inline static uint64_t
+	timer_elapsed(const Timer& self) {
+		return time_now_millis() - self._last_time_millis;
+	}
 }
 
 namespace fmt {

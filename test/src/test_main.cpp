@@ -29,4 +29,8 @@ int main() {
     auto str2 = str1;
     mu::str_to_lower(str2);
     mu_test_msg(str2 == "hello", "can lower str");
+
+    auto timer = mu::timer_new();
+    mu::thread_sleep_millis(100);
+    mu::log_debug("should have slept for 100ms, actually slept for {}ms", mu::timer_elapsed(timer));
 }
