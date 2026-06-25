@@ -1,11 +1,6 @@
 #pragma once
 
-#ifdef COMPILER_APPLE_CLANG
-#include <experimental/memory_resource>
-namespace std { namespace pmr = experimental::pmr; }
-#else
 #include <memory_resource>
-#endif
 
 #include <vector>
 #include <array>
@@ -16,6 +11,7 @@ namespace std { namespace pmr = experimental::pmr; }
 #include <fstream>
 #include <functional>
 #include <filesystem>
+#include <thread>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
