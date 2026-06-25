@@ -240,28 +240,6 @@ namespace mu {
     }
 }
 
-#ifdef COMPILER_APPLE_CLANG
-namespace std { namespace experimental { inline namespace fundamentals_v1 { namespace pmr {
-    static memory::LibcAllocator _c_allocator;
-    static thread_local memory_resource* _global_default_resource = nullptr;
-
-    memory_resource*
-    get_default_resource() noexcept {
-        if (_global_default_resource == nullptr) {
-            _global_default_resource = &_c_allocator;
-        }
-        return _global_default_resource;
-    }
-
-    memory_resource*
-    set_default_resource(memory_resource* res) noexcept {
-        auto x = get_default_resource();
-        _global_default_resource = res;
-        return x;
-    }
-} } } }
-#endif
-
 #endif
 
 namespace mu {
